@@ -260,13 +260,14 @@ Analyzer::Analyzer(std::vector<std::string> infiles, std::string outfile, bool s
   }
 
   // Check if this is a W/Z+jets sample for the purposes of applying Z-pt corrections.
-  if((infiles[0].find("WJets") != std::string::npos) || (infiles[0].find("DY") != std::string::npos) || (infiles[0].find("EWKWPlus") != std::string::npos)
-    || (infiles[0].find("EWKWMinus") != std::string::npos) || (infiles[0].find("Z2Jets") != std::string::npos)){
-    isVSample = true;
-  }
-  else{
-    isVSample = false;
-  }
+  isVSample =    (infiles[0].find("WJets") != std::string::npos)
+              or (infiles[0].find("DY") != std::string::npos)
+              or (infiles[0].find("ZJetsToNuNu") != std::string::npos)
+              or (infiles[0].find("EWKWPlus") != std::string::npos)
+              or (infiles[0].find("EWKWMinus") != std::string::npos)
+              or (infiles[0].find("Z2Jets") != std::string::npos);
+
+  is_ZJetsToNuNu_ = infiles[0].find("ZJetsToNuNu") != std::string::npos;
 
   initializeWkfactor(infiles);
   setCutNeeds();
@@ -4972,12 +4973,20 @@ double Analyzer::getZpTWeight() {
 
 // These are weights derived by the VBF SUSY team - Run II (Kyungmin Park)
 double Analyzer::getZpTWeight_vbfSusy(std::string year) {
-    double zPtBoost = 1.;
+    double zPtBoost = 1.0;
+    double zPT = 0.0;
 
-    // std::cout << "Year (zboostwgt) = " << year << std::endl;
-    if((active_part->at(CUTS::eGElec)->size() + active_part->at(CUTS::eGTau)->size() + active_part->at(CUTS::eGMuon)->size()) >=1 && (active_part->at(CUTS::eGZ)->size() ==1 || active_part->at(CUTS::eGW)->size() ==1)){
-      double zPT = 0;
+    const bool has_gen_electron = active_part->at(CUTS::eGElec)->size() >= 1;
+    const bool has_gen_muon = active_part->at(CUTS::eGMuon)->size() >= 1;
+    const bool has_gen_tau = active_part->at(CUTS::eGTau)->size() >= 1;
 
+    const bool has_single_z_boson = active_part->at(CUTS::eGZ)->size() == 1;
+    const bool has_single_w_boson = active_part->at(CUTS::eGW)->size() == 1;
+
+    const bool has_gen_lepton = has_gen_electron or has_gen_muon or has_gen_tau;
+    const bool has_single_v_boson = has_single_w_boson or has_single_z_boson;
+
+    if (has_single_v_boson and (has_gen_lepton or is_ZJetsToNuNu_)) {
       if(active_part->at(CUTS::eGZ)->size() ==1) {
           zPT = _Gen->pt(active_part->at(CUTS::eGZ)->at(0));
       }
